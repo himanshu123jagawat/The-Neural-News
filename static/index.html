@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Neural News</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Custom styles to achieve the vintage newspaper look */
+        body {
+            font-family: 'Merriweather', serif;
+            background-color: #f4e8d3; /* Slightly yellowish tone for paper */
+            background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png');
+            color: #1a1a1a; /* Dark ink color */
+            position: relative;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: all 3.5s ease-in-out; /* Super slow transition */
+        }
+
+        /* Newspaper content container */
+        .newspaper-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 2rem 5rem;
+            opacity: 0.35; /* Visibility increased for a more realistic look */
+            line-height: 1.8;
+            font-size: 0.9rem;
+            z-index: 1;
+            text-align: justify;
+            column-count: 3; /* Create newspaper columns */
+            column-gap: 3rem;
+            overflow-y: scroll; /* Allow scrolling for content */
+            pointer-events: none; /* Make the background non-interactive */
+            background: linear-gradient(to bottom, rgba(244, 232, 211, 0.1) 0%, rgba(244, 232, 211, 0.7) 50%, rgba(244, 232, 211, 0.1) 100%); /* Subtle gradient for color variation */
+            transition: opacity 3.5s ease-in-out; /* Smooth transition for background fading */
+        }
+        
+        /* State for when output is active */
+        .output-active .newspaper-content {
+            opacity: 0; /* Hide background content when output is active */
+        }
+
+        .newspaper-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        .newspaper-content h2 {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+            font-size: 2.5rem;
+            line-height: 1.1;
+            margin-bottom: 0.5rem;
+            column-span: all;
+            text-align: center;
+            border-bottom: 3px double #1a1a1a;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .newspaper-content h3 {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            font-size: 1.4rem;
+            line-height: 1.2;
+            margin-bottom: 0.5rem;
+        }
+        
+        .byline {
+            font-style: italic;
+            font-size: 0.8rem;
+            color: #555;
+            margin-bottom: 1rem;
+        }
+        
+        /* Main centered container for title and search bar */
+        .main-container {
+            text-align: center;
+            position: relative;
+            z-index: 10;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+            min-height: 100vh;
+            justify-content: center;
+            transition: all 3.5s ease-in-out; /* Smooth transition for layout changes */
+        }
+
+        /* Active layout for after search */
+        .main-container.active-layout {
+            justify-content: flex-start;
+            align-items: center;
+            min-height: 100vh;
+            max-width: 1000px;
+        }
+        
+        /* Masthead styling for the main title */
+        .masthead {
+            transition: all 3.5s ease-in-out;
+        }
+
+        .masthead.minimized {
+            transform: scale(0.6);
+            margin-bottom: -2rem;
+        }
+
+        .masthead h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(3rem, 10vw, 6rem);
+            font-weight: 900;
+            letter-spacing: -2px;
+            line-height: 1;
+            color: #1a1a1a;
+        }
+        
+        /* Chat container styles */
+        .chat-container {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            max-width: 900px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 0;
+            margin: 1rem 0;
+            gap: 1rem;
+        }
+
+        .chat-container.active {
+            display: flex;
+        }
+
+        .chat-message {
+            display: flex;
+            margin-bottom: 1rem;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .chat-message.user {
+            justify-content: flex-end;
+        }
+
+        .chat-message.bot {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 1rem 1.5rem;
+            border-radius: 1.5rem;
+            position: relative;
+            word-wrap: break-word;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .message-bubble.user {
+            background: linear-gradient(135deg, #1a1a1a, #333);
+            color: #fffdf5;
+            border-bottom-right-radius: 0.5rem;
+        }
+
+        .message-bubble.bot {
+            background: rgba(255, 255, 255, 0.95);
+            color: #1a1a1a;
+            border: 1px solid rgba(26, 26, 26, 0.1);
+            border-bottom-left-radius: 0.5rem;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 0 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .message-avatar.user {
+            background: linear-gradient(135deg, #1a1a1a, #333);
+            color: #fffdf5;
+        }
+
+        .message-avatar.bot {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 1.5rem;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 1.5rem;
+            border-bottom-left-radius: 0.5rem;
+            max-width: 200px;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: #666;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Search container, designed to be clean and central */
+        .search-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 9999px;
+            width: 100%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: all 3.5s ease-in-out;
+        }
+
+        /* When in active layout, make search container sticky */
+        .main-container.active-layout .search-container {
+            position: sticky;
+            bottom: 0;
+            margin-top: auto;
+        }
+
+        /* Search bar styling */
+        .search-bar {
+            font-family: 'Merriweather', serif;
+            border: none;
+            background-color: transparent;
+            padding: 0.75rem 1.5rem;
+            width: 100%;
+            font-size: 1rem;
+            outline: none;
+        }
+        
+        .search-bar::placeholder {
+            color: #555;
+            font-style: italic;
+        }
+
+        .search-button {
+            background-color: #1a1a1a;
+            color: #fffdf5;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 9999px;
+            font-family: 'Merriweather', serif;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .search-button:hover {
+            background-color: #333;
+        }
+
+        .search-button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        
+        /* Loading spinner styles */
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1a1a1a;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Custom Modal styles (replaces alert/confirm) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background-color: #fffdf5;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .modal-content h3 {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .modal-content p {
+            font-size: 1rem;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-button {
+            background-color: #1a1a1a;
+            color: #fffdf5;
+            padding: 0.5rem 1.5rem;
+            border-radius: 4px;
+            font-family: 'Merriweather', serif;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .modal-button:hover {
+            background-color: #333;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="newspaper-content" id="newspaper-bg">
+        <h2>The Digital Epoch: A Crisis of Credibility</h2>
+        <p>In the digital age, the very fabric of truth is being tested. The rapid spread of misinformation, often fueled by sensationalism and emotional appeals, has made it increasingly difficult for citizens to distinguish fact from fiction. This deluge of unverified claims threatens not only individual understanding but also the foundations of democratic societies. As technology accelerates, so too does the need for robust tools to combat the flow of falsehoods.</p>
+        
+        <h3>The Unseen Hand: How AI Fuels Disinformation</h3>
+        <p class="byline">By A.I. Analyst</p>
+        <p>Artificial intelligence, while a powerful tool for progress, has a dark side. It is used to generate deepfakes, automate bot armies, and craft convincing narratives that can deceive millions. The very technology that promises to help us navigate the digital world is also being used to create its most dangerous pitfalls. Experts argue that the only way to fight this new threat is with a new kind of defense: an AI-powered system designed specifically for fact-checking.</p>
+        
+        <h3>Beyond the Headline: The Psychology of Deception</h3>
+        <p class="byline">By Dr. Evelyn Reed</p>
+        <p>Why do we fall for fake news? The answer lies not in a lack of intelligence, but in the human brain's inherent biases. Confirmation bias, the tendency to favor information that confirms our beliefs, and tribalism, the desire to align with our social groups, make us uniquely vulnerable to manipulation. Fact-checking tools are not just technological solutions; they are psychological safeguards designed to help us overcome our own cognitive shortcuts.</p>
+
+        <h3>A New Frontier: The Promise of Neural Networks</h3>
+        <p class="byline">By The Neural News Team</p>
+        <p>This application, "The Neural News," represents a new frontier in the battle for information integrity. By leveraging sophisticated neural networks, we aim to create a system that can quickly and accurately analyze claims, cross-reference them against a vast database, and provide a clear verdict. Our goal is to empower users with the data they need to make informed decisions, transforming them from passive consumers of news into active participants in the search for truth.</p>
+        
+        <h3>The Stakes of Truth: A Call to Action</h3>
+        <p>The integrity of our information ecosystem is not a luxury; it is a necessity for a functioning society. Without a shared understanding of basic facts, constructive dialogue and collective action become impossible. This app is more than just a tool; it is a call to action, urging every user to be a part of the solution by demanding accountability and verifying every claim they encounter. The future of our public discourse depends on it.</p>
+    </div>
+
+    <div class="main-container" id="mainContainer">
+        <header class="masthead" id="masthead">
+            <h1>The Neural News</h1>
+        </header>
+
+        <div id="welcomeMessage" class="text-center">
+            <p style="font-style: italic; color: #555; font-size: 1.1rem;">Start your conversation by entering a claim to verify...</p>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <!-- Chat messages will be dynamically added here -->
+        </div>
+
+        <div class="search-container">
+             <input type="text" id="searchInput" class="search-bar" placeholder="Enter a claim to verify...">
+             <button id="searchButton" class="search-button">Send</button>
+             <div id="loadingIndicator" class="loading-spinner hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const mainContainer = document.getElementById('mainContainer');
+        const chatContainer = document.getElementById('chatContainer');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const masthead = document.getElementById('masthead');
+        const newspaperBg = document.getElementById('newspaper-bg');
+
+        let isFirstMessage = true;
+    
+        // Function to show a custom modal box
+        function showModal(title, message) {
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'modal-overlay';
+            modalOverlay.innerHTML = `
+                <div class="modal-content">
+                    <h3>${title}</h3>
+                    <p>${message}</p>
+                    <button class="modal-button" id="modal-ok-btn">OK</button>
+                </div>
+            `;
+            document.body.appendChild(modalOverlay);
+    
+            document.getElementById('modal-ok-btn').addEventListener('click', () => {
+                document.body.removeChild(modalOverlay);
+            });
+        }
+
+        // Function to add user message to chat
+        function addUserMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chat-message user';
+            messageDiv.innerHTML = `
+                <div class="message-bubble user">
+                    ${message}
+                </div>
+                <div class="message-avatar user">You</div>
+            `;
+            chatContainer.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        // Function to add bot message to chat
+        function addBotMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chat-message bot';
+            messageDiv.innerHTML = `
+                <div class="message-avatar bot">NN</div>
+                <div class="message-bubble bot">
+                    ${message.replace(/\n/g, '<br>')}
+                </div>
+            `;
+            chatContainer.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        // Function to show typing indicator
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'chat-message bot';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.innerHTML = `
+                <div class="message-avatar bot">NN</div>
+                <div class="typing-indicator">
+                    <span>Analyzing</span>
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            chatContainer.appendChild(typingDiv);
+            scrollToBottom();
+        }
+
+        // Function to remove typing indicator
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        // Function to scroll to bottom of chat
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Function to activate chat mode
+        function activateChatMode() {
+            if (isFirstMessage) {
+                mainContainer.classList.add('active-layout');
+                document.body.classList.add('output-active');
+                masthead.classList.add('minimized');
+                welcomeMessage.style.display = 'none';
+                chatContainer.classList.add('active');
+                isFirstMessage = false;
+            }
+        }
+    
+        // Main search handler function
+        async function handleSearch() {
+            const query = searchInput.value.trim();
+            if (query === '') {
+                showModal("Validation Error", "Please enter a claim to verify.");
+                return;
+            }
+
+            // Activate chat mode and add user message
+            activateChatMode();
+            addUserMessage(query);
+
+            // Clear input and show loading
+            searchInput.value = '';
+            loadingIndicator.classList.remove('hidden');
+            searchButton.disabled = true;
+            showTypingIndicator();
+            
+            // The agent works with direct text, which can be a claim or a URL
+            const payload = { text: query };
+    
+            try {
+                // Updated to use theneuralnews.info domain
+                const response = await fetch("https://theneuralnews.info/analyze-with-agent", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+    
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'API request failed.');
+                }
+    
+                const data = await response.json();
+                
+                // Hide typing indicator and show response
+                hideTypingIndicator();
+                addBotMessage(data.agent_response);
+    
+            } catch (error) {
+                console.error('Error:', error);
+                hideTypingIndicator();
+                addBotMessage(`Sorry, I encountered an error: ${error.message}. Please make sure your server is running.`);
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                searchButton.disabled = false;
+                searchInput.focus(); // Focus back on input for next message
+            }
+        }
+    
+        // Add event listeners
+        searchButton.addEventListener('click', handleSearch);
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSearch();
+            }
+        });
+
+        // Focus on input when page loads
+        window.addEventListener('load', () => {
+            searchInput.focus();
+        });
+    </script>
+</body>
+</html>
